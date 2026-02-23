@@ -21,7 +21,7 @@ export function useGlobalHistory() {
     const client = usePublicClient();
 
     const fetchHistory = async () => {
-        if (!client || CONTRACT_ADDRESS.startsWith('0xYour') || CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+        if (!client || CONTRACT_ADDRESS.startsWith('0xYour') || CONTRACT_ADDRESS as string === '0x0000000000000000000000000000000000000000') {
             setLoading(false);
             return;
         }
