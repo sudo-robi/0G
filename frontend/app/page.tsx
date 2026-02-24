@@ -5,7 +5,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadCont
 import { parseEther, keccak256, toBytes } from 'viem';
 import { INFERENCE_REGISTRY_ABI, CONTRACT_ADDRESS, WORKER_URL } from './lib/constants';
 import { ConnectButton } from './components/ConnectButton';
-import { Shield, Zap, Database, CheckCircle, Loader2, ArrowRight, ExternalLink, Globe, History, User, Lock } from 'lucide-react';
+import { Shield, Zap, Database, CheckCircle, Loader2, ArrowRight, ExternalLink, Globe, History, User, Lock, Copy } from 'lucide-react';
 import { useGlobalHistory } from './hooks/useGlobalHistory';
 import { VerificationPanel } from './components/VerificationPanel';
 import { AuditFeed } from './components/AuditFeed';
@@ -39,13 +39,24 @@ export default function Home() {
     functionName: 'totalRequests',
   });
 
+  const { data: requestData } = useReadContract({
+    address: CONTRACT_ADDRESS as `0x${string}`,
+    abi: INFERENCE_REGISTRY_ABI,
+    functionName: 'getRequest',
+    args: requestId ? [BigInt(requestId)] : undefined,
+    query: {
+      enabled: status === 'waiting',
+      refetchInterval: 3000,
+    }
+  });
+
   const { data: onChainResult } = useReadContract({
     address: CONTRACT_ADDRESS as `0x${string}`,
     abi: INFERENCE_REGISTRY_ABI,
     functionName: 'getResult',
     args: requestId ? [BigInt(requestId)] : undefined,
     query: {
-      enabled: status === 'waiting',
+      enabled: status === 'waiting' && requestData?.fulfilled === true,
       refetchInterval: 3000,
     }
   });
@@ -263,17 +274,41 @@ export default function Home() {
                   <div className="flex flex-wrap gap-4">
                     <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/5 flex flex-col">
                       <span className="text-[10px] text-white/30 uppercase font-bold mb-1 tracking-widest">Commitment Hash</span>
-                      <span className="text-xs font-mono text-blue-400">{result.resultHash.slice(0, 24)}...</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-blue-400">{result.resultHash.slice(0, 24)}...</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(result.resultHash);
+                            alert('Hash copied to clipboard!');
+                          }}
+                          className="p-1 hover:bg-white/10 rounded transition-colors"
+                          title="Copy hash"
+                        >
+                          <Copy size={12} className="text-white/40 hover:text-white/60" />
+                        </button>
+                      </div>
                     </div>
                     <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/5 flex flex-col">
                       <span className="text-[10px] text-white/30 uppercase font-bold mb-1 tracking-widest">0G Root Hash (CID)</span>
-                      <a
-                        href={`https://storagescan-galileo.0g.ai/index.html?root=${result.storagePointer}`}
-                        target="_blank"
-                        className="text-xs font-mono text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
-                      >
-                        {result.storagePointer.slice(0, 24)}... <ExternalLink size={10} />
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`https://storagescan-galileo.0g.ai/index.html?root=${result.storagePointer}`}
+                          target="_blank"
+                          className="text-xs font-mono text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+                        >
+                          {result.storagePointer.slice(0, 24)}... <ExternalLink size={10} />
+                        </a>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(result.storagePointer);
+                            alert('Root hash copied to clipboard!');
+                          }}
+                          className="p-1 hover:bg-white/10 rounded transition-colors"
+                          title="Copy root hash"
+                        >
+                          <Copy size={12} className="text-white/40 hover:text-white/60" />
+                        </button>
+                      </div>
                     </div>
                     <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/5 flex flex-col">
                       <span className="text-[10px] text-white/30 uppercase font-bold mb-1 tracking-widest">Execution Node</span>
