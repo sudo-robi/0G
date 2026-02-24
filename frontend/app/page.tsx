@@ -86,8 +86,12 @@ export default function Home() {
         console.log('🔐 Encrypting prompt for 0G worker...');
         const EthCrypto = await import('eth-crypto');
         payload = await EthCrypto.encryptWithPublicKey(workerPublicKey, prompt);
+        console.log('✅ Prompt encrypted successfully');
+      } else {
+        console.warn('⚠️  Worker public key not available, sending unencrypted');
       }
 
+      console.log('📡 Registering prompt with worker...');
       const regResponse = await fetch(`${WORKER_URL}/register-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,8 +102,14 @@ export default function Home() {
         }),
       });
 
-      if (!regResponse.ok) throw new Error('Failed to register prompt with worker');
+      if (!regResponse.ok) {
+        const errorText = await regResponse.text();
+        console.error('❌ Worker registration failed:', errorText);
+        throw new Error(`Failed to register prompt with worker: ${errorText}`);
+      }
 
+      console.log('✅ Prompt registered with worker');
+      console.log('📤 Submitting transaction to blockchain...');
       setStatus('submitting');
       writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
@@ -110,8 +120,9 @@ export default function Home() {
       });
 
       setRequestId(nextId.toString());
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('❌ Error:', err);
+      alert(`Error: ${err.message || 'Unknown error occurred'}\n\nMake sure:\n1. You are connected to 0G Galileo Testnet\n2. You have at least 0.001 GO in your wallet\n3. The worker is running on localhost:3001`);
       setStatus('idle');
     }
   };
@@ -190,7 +201,7 @@ export default function Home() {
                   <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs text-white/40">Inference Fee</span>
-                      <span className="text-xs font-mono font-bold text-blue-400">0.001 A0GI</span>
+                      <span className="text-xs font-mono font-bold text-blue-400">0.001 GO</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-white/40">Privacy</span>
