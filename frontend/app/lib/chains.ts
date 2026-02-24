@@ -5,8 +5,8 @@ export const zeroGGalileo = defineChain({
     name: '0G Galileo Testnet',
     nativeCurrency: {
         decimals: 18,
-        name: 'A0GI',
-        symbol: 'A0GI',
+        name: 'GO',
+        symbol: 'GO',
     },
     rpcUrls: {
         default: { http: ['https://evmrpc-testnet.0g.ai'] },
