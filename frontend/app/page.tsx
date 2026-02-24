@@ -273,9 +273,16 @@ export default function Home() {
 
                   <div className="flex flex-wrap gap-4">
                     <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/5 flex flex-col">
-                      <span className="text-[10px] text-white/30 uppercase font-bold mb-1 tracking-widest">Commitment Hash</span>
+                      <span className="text-[10px] text-white/30 uppercase font-bold mb-1 tracking-widest">Commitment Hash (On-Chain)</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-blue-400">{result.resultHash.slice(0, 24)}...</span>
+                        <a
+                          href={`https://chainscan-galileo.0g.ai/address/${CONTRACT_ADDRESS}`}
+                          target="_blank"
+                          className="text-xs font-mono text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+                          title="View on blockchain explorer"
+                        >
+                          {result.resultHash.slice(0, 24)}... <ExternalLink size={10} />
+                        </a>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(result.resultHash);
