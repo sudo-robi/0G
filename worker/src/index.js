@@ -64,17 +64,12 @@ async function processInference(requestId, promptHash, modelId, rawPrompt) {
   if (processed.has(id)) return;
   processed.add(id);
 
-  console.log(`\n🔍  [Request #${id}] Processing...`);
-  console.log(`    Model:       ${modelId}`);
-  console.log(`    PromptHash:  ${promptHash}`);
 
   // ── Step 0: Decrypt if needed ──────────────────────────────
   let promptText = rawPrompt;
   if (typeof rawPrompt === 'object' && rawPrompt.iv) {
     try {
-      console.log(`    🔐 Decrypting ECIES prompt...`);
       promptText = await EthCrypto.decryptWithPrivateKey(PRIVATE_KEY, rawPrompt);
-      console.log(`    ✅ Decrypted successfully`);
     } catch (err) {
       console.error(`    ❌ Decryption failed:`, err.message);
       processed.delete(id);
@@ -82,13 +77,11 @@ async function processInference(requestId, promptHash, modelId, rawPrompt) {
     }
   }
 
-  console.log(`    Prompt:      ${promptText.slice(0, 80)}${promptText.length > 80 ? "..." : ""}`);
 
   // ── Step 1: Run inference via Groq ──────────────────────────
   let output;
   try {
     const model = modelId && modelId.trim() !== "" ? modelId : GROQ_MODEL;
-    console.log(`    🚀 Calling Groq with model: ${model}`);
     const completion = await groq.chat.completions.create({
       model,
       messages: [
@@ -105,7 +98,6 @@ async function processInference(requestId, promptHash, modelId, rawPrompt) {
       temperature: 0.7,
     });
     output = completion.choices[0]?.message?.content ?? "";
-    console.log(`    ✅ Groq response (${output.length} chars)`);
   } catch (err) {
     console.error(`    ❌ Groq API error:`, err.message);
     processed.delete(id); // allow retry
@@ -114,7 +106,6 @@ async function processInference(requestId, promptHash, modelId, rawPrompt) {
 
   // ── Step 2: Hash the output ─────────────────────────────────
   const resultHash = ethers.keccak256(ethers.toUtf8Bytes(output));
-  console.log(`    ResultHash:  ${resultHash}`);
 
   // ── Step 3: Package & Upload to 0G Storage ─────────────────
   const inferencePackage = JSON.stringify({
@@ -130,7 +121,6 @@ async function processInference(requestId, promptHash, modelId, rawPrompt) {
 
   let storagePointer;
   try {
-    console.log(`    📦 Uploading inference package to 0G Storage...`);
 
     // Create ZgFile from the package content
     const file = await ZgFile.fromBuffer(Buffer.from(inferencePackage));
@@ -138,38 +128,26 @@ async function processInference(requestId, promptHash, modelId, rawPrompt) {
     if (treeErr) throw new Error(`Merkle tree error: ${treeErr}`);
 
     const rootHash = tree.rootHash();
-    console.log(`    0G Root Hash: ${rootHash}`);
 
     // Check if file already exists in 0G
     const fileInfo = await indexer.getFileInfo(rootHash);
     if (fileInfo) {
-      console.log(`    ℹ️ File already exists in 0G`);
     } else {
       // Upload file to 0G
       const [txHash, uploadErr] = await indexer.upload(file, 0, signer, FLOW_CONTRACT_ADDRESS);
       if (uploadErr) throw new Error(`0G upload error: ${uploadErr}`);
-      console.log(`    ✅ 0G Upload Tx: ${txHash}`);
     }
 
     storagePointer = rootHash;
   } catch (err) {
     console.error(`    ❌ 0G Storage Error:`, err.message);
-    console.log(`    ⚠️ Falling back to placeholder pointer...`);
     storagePointer = `FALLBACK:${resultHash.slice(0, 32)}`;
   }
 
   // ── Step 4: Submit result hash to contract ──────────────────
   try {
-    console.log(`    📤 Submitting result to contract...`);
     const tx = await contract.submitResult(requestId, resultHash, storagePointer);
-    console.log(`    📨 Tx sent: ${tx.hash}`);
     const receipt = await tx.wait();
-    console.log(`    ✅ Confirmed in block ${receipt.blockNumber}`);
-    console.log(`\n${"─".repeat(60)}`);
-    console.log(`🔐  Request #${id} VERIFIED`);
-    console.log(`    On-chain Result Hash: ${resultHash}`);
-    console.log(`    Verify independently: ethers.keccak256(ethers.toUtf8Bytes(output))`);
-    console.log(`${"─".repeat(60)}`);
   } catch (err) {
     console.error(`    ❌ Contract submission error:`, err.message);
     processed.delete(id); // allow retry
@@ -245,7 +223,6 @@ const httpServer = createServer((req, res) => {
         const { requestId, prompt, promptHash } = JSON.parse(body);
         if (requestId !== undefined && prompt) {
           promptRegistry.set(requestId.toString(), { prompt, promptHash });
-          console.log(`📥  Registered prompt for requestId=${requestId}`);
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ ok: true }));
         } else {
@@ -280,39 +257,21 @@ const httpServer = createServer((req, res) => {
 // ─────────────────────────────────────────────────────────────
 
 async function start() {
-  console.log("═".repeat(60));
-  console.log("🚀  Verifiable AI Inference Worker");
-  console.log("    The trust layer for decentralized intelligence.");
-  console.log("═".repeat(60));
-  console.log(`    Node Address: ${signer.address}`);
-  console.log(`    Contract:     ${CONTRACT_ADDRESS}`);
-  console.log(`    RPC:          ${RPC_URL}`);
-  console.log(`    Model:        ${GROQ_MODEL}`);
-  console.log(`    HTTP Port:    ${HTTP_PORT}`);
-  console.log("─".repeat(60));
 
   // Verify node is authorized
   try {
     const totalRequests = await contract.totalRequests();
-    console.log(`    Total requests on-chain: ${totalRequests}`);
   } catch (e) {
-    console.warn(`    ⚠️  Could not fetch contract state: ${e.message}`);
   }
 
   // Start HTTP prompt-registration server
   httpServer.listen(HTTP_PORT, () => {
-    console.log(`    🌐 HTTP endpoint: http://localhost:${HTTP_PORT}`);
-    console.log("─".repeat(60));
   });
 
   // Listen for InferenceRequested events
-  console.log("👂  Listening for InferenceRequested events...");
 
   contract.on("InferenceRequested", async (requestId, requester, promptHash, modelId, timestamp, event) => {
     const id = requestId.toString();
-    console.log(`\n📡  Event: InferenceRequested #${id}`);
-    console.log(`    Requester: ${requester}`);
-    console.log(`    Tx Hash:   ${event.log.transactionHash}`);
 
     // Recover prompt from registry (posted by frontend before tx)
     const registered = promptRegistry.get(id);
