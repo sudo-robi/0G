@@ -3,7 +3,7 @@ import { usePublicClient } from 'wagmi';
 import { INFERENCE_REGISTRY_ABI, CONTRACT_ADDRESS } from '../lib/constants';
 import { parseAbiItem } from 'viem';
 
-export interface GlobalInference {
+interface GlobalInference {
     requestId: bigint;
     requester: string;
     promptHash: string;
